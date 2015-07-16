@@ -6,7 +6,12 @@ import argparse
 import yaml
 import json
 import glob
-from itertools import zip_longest
+try:
+    from itertools import zip_longest
+except ImportError:
+    # Python 2 support fallback:
+    from itertools import izip_longest  # pylint: disable=E0611
+    zip_longest = izip_longest
 import logging
 logger = logging.getLogger(__name__)
 
@@ -160,14 +165,20 @@ def diff_designs(design1, design2):
             old_vstrands_tups.index(new_vstrands_tups[0])
             print("old vstrand", i, "moved to", new_vstrands_tups.index(old_vs), "(but is otherwise identical)")
             continue
+        old_num = old_vstrands[i].get('num')
+        print("Changes for vstrand %s (index %s):" % (old_num, i))
         for (oldk, oldv), (newk, newv) in zip(old_vs, new_vs):
             if not oldk == newk:
-                print("vstrand %s change in keys '%s' != '%s' - this should not happen!!" % (i, oldk, newk))
+                print("** vstrand %s change in keys '%s' != '%s' - this should not happen!!" % (i, oldk, newk))
                 continue
             if newv == oldv:
                 continue
             else:
-                print("'%s' is changed in vstrand %s (index %s)" % (oldk, old_vs.get('num'), i))
+                pw_changes = [new_elem != old_elem for new_elem, old_elem in zip(oldv, newv)]
+                changed_idx = [i for i, val in enumerate(pw_changes) if val is True]
+                print("- '%s': %s pairwise changes - idx %s" % \
+                      (oldk, sum(pw_changes),
+                       changed_idx if len(changed_idx) < 5 else "%s,...,%s" % (changed_idx[0], changed_idx[-1])))
 
 
 
